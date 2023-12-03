@@ -9,8 +9,8 @@
 #else
 #include <ESP8266WiFi.h>
 #endif
-#include <Espalexa.h>
 #include <Servo.h>
+#include <fauxmoESP.h>
 
 // Notice: credentials are .gitignore'd!
 // Please add your own wificredentials.h in order to #define WIFI_CREDENTIALS_SSID and WIFI_CREDENTIALS_PASSWORD
@@ -26,32 +26,7 @@ const char* password = WIFI_CREDENTIALS_PASSWORD;
 
 boolean wifiConnected = false;
 
-Espalexa espalexa;
-
-EspalexaDevice* device3; //this is optional
-
-//callback functions
-void firstLightChanged(uint8_t brightness);
-void secondLightChanged(uint8_t brightness);
-void thirdLightChanged(uint8_t brightness);
-
-
-
-//our callback functions
-void firstLightChanged(uint8_t brightness) {
-    Serial.print("Device 1 changed to ");
-    
-    //do what you need to do here
-
-    //EXAMPLE
-    if (brightness) {
-      Serial.print("ON, brightness ");
-      Serial.println(brightness);
-    }
-    else  {
-      Serial.println("OFF");
-    }
-}
+fauxmoESP fauxmo;
 
 void servoChanged(uint8_t brightness) {
   Serial.print("Servo = ");
@@ -66,9 +41,6 @@ void servoChanged(uint8_t brightness) {
  
 }
 
-void thirdLightChanged(uint8_t brightness) {
-  //do what you need to do here
-}
 
 // connect to wifi – returns true if successful or false if not
 boolean connectWifi(){
@@ -112,19 +84,21 @@ void setup()
   // Initialise wifi connection
   wifiConnected = connectWifi();
   
-  if(wifiConnected){
-    
-    // Define your devices here. 
-    espalexa.addDevice("Relay 1", firstLightChanged); //simplest definition, default state off
-    espalexa.addDevice("ServoMotor", servoChanged, 0); //third parameter is beginning state (here fully on)
-    
-    device3 = new EspalexaDevice("Relay 3", thirdLightChanged); //you can also create the Device objects yourself like here
-    espalexa.addDevice(device3); //and then add them
-    device3->setValue(128); //this allows you to e.g. update their state value at any time!
-
-    espalexa.begin();
-    
-  } else
+  if(wifiConnected)
+  {    
+    fauxmo.addDevice("ServoMotor");   
+    fauxmo.setState("ServoMotor", false, 255 );
+    fauxmo.onSetState([](unsigned char device_id, const char * device_name, bool state, unsigned char value) {
+          if ( strcmp(device_name, "ServoMotor")==0 ) 
+          {
+            servoChanged( state ? 255 : 0 );            
+            Serial.printf("[MAIN] Device #%d (%s) state: %s value: %d\n", device_id, device_name, state ? "ON" : "OFF", value);
+          }
+      });
+    fauxmo.setPort(80); // required for gen3 devices
+    fauxmo.enable(true);
+  } 
+  else
   {
     while (1) {
       Serial.println("Cannot connect to WiFi. Please check data and reset the ESP.");
@@ -137,7 +111,9 @@ void setup()
 
 void loop()
 {
-  espalexa.loop();
+  //espalexa.loop();
+  fauxmo.handle();
+
   delay(1);
   if (servoDelay > 0)
   {
