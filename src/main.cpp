@@ -20,25 +20,35 @@ Servo servo;
 int servoAngleSpan = 10;
 int servoDelay = 0;
 
-
 const char* ssid = WIFI_CREDENTIALS_SSID;
 const char* password = WIFI_CREDENTIALS_PASSWORD;
+
+#define LED_PIN D7
+#define LED_INIT pinMode(LED_PIN, OUTPUT)
+
+#define LED_ON  digitalWrite( LED_PIN, LOW )
+#define LED_OFF digitalWrite( LED_PIN, HIGH )
 
 boolean wifiConnected = false;
 
 fauxmoESP fauxmo;
 
-void servoChanged(uint8_t brightness) {
+void servoChanged(bool isOn) {
   Serial.print("Servo = ");
-  Serial.println( brightness );
+  Serial.println( isOn ? "ON" :"OFF" );
   servoAngleSpan = 40;
-  if (brightness > 10 )
+  if (isOn)
+  {
     servo.write( 90 + servoAngleSpan +15 );
+    LED_ON;
+  }
   else
+  {
     servo.write( 90 - servoAngleSpan );
- 
+    LED_OFF;
+  }
+
   servoDelay = 11 * 1000 /*mS*/;
- 
 }
 
 
@@ -77,6 +87,8 @@ boolean connectWifi(){
 
 void setup()
 {
+  LED_INIT;
+  LED_OFF;
   servo.attach( 2 );
   servo.write( 90 );
   
@@ -87,11 +99,11 @@ void setup()
   if(wifiConnected)
   {    
     fauxmo.addDevice("ServoMotor");   
-    fauxmo.setState("ServoMotor", false, 255 );
+    //fauxmo.setState("ServoMotor", 0, 1);
     fauxmo.onSetState([](unsigned char device_id, const char * device_name, bool state, unsigned char value) {
           if ( strcmp(device_name, "ServoMotor")==0 ) 
           {
-            servoChanged( state ? 255 : 0 );            
+            servoChanged( state );            
             Serial.printf("[MAIN] Device #%d (%s) state: %s value: %d\n", device_id, device_name, state ? "ON" : "OFF", value);
           }
       });
@@ -113,7 +125,18 @@ void loop()
 {
   //espalexa.loop();
   fauxmo.handle();
+  
+  // check for connection breaks
+  if(WiFi.status() != WL_CONNECTED)
+  {
+    Serial.println("Connection lost, rebooting...");
+    delay(10000);
+    ESP.restart();
+    delay(10000);
+  }
 
+  // put servo at rest after some delay, 
+  // here we can assume taking about 1mS per loop
   delay(1);
   if (servoDelay > 0)
   {
