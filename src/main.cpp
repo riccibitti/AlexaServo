@@ -17,7 +17,6 @@
 #include "wificredentials.h"
 
 Servo servo;
-int servoAngleSpan = 10;
 int servoDelay = 0;
 
 const char* ssid = WIFI_CREDENTIALS_SSID;
@@ -36,10 +35,10 @@ fauxmoESP fauxmo;
 void servoChanged(bool isOn) {
   Serial.print("Servo = ");
   Serial.println( isOn ? "ON" :"OFF" );
-  servoAngleSpan = 40;
+  int servoAngleSpan = 65;
   if (isOn)
   {
-    servo.write( 90 + servoAngleSpan +15 );
+    servo.write( 90 + servoAngleSpan );
     LED_ON;
   }
   else
